@@ -1,151 +1,107 @@
-# SCH Machine
+# TFmini Machine Flow
 
-Raspberry Pi GPIO 기반 기계 제어 프로젝트입니다.
-TFmini 거리센서로 물체를 감지하고, 리니어 액추에이터, 웜기어, 스텝모터, 서보모터를 순서대로 제어합니다.
+## 1. 프로젝트 목적
 
-## 실행 파일
+`tfmini_machine_flow/`는 TFmini 거리센서 감지를 기준으로 장비 동작 Flow를 실행하는 별도 프로젝트입니다.
 
-- `main.py`: 최종 실행 진입점
-- `config.py`: 핀 번호, 거리 기준, 속도, 시간 설정
+기존 루트 프로젝트 파일은 설정값과 하드웨어 제어 방식을 참고만 했습니다. 이 폴더는 자체 `main.py`, `config.py`, `hardware/`, `flows/`, `tests_manual/`을 가지고 독립적으로 동작합니다.
 
-## 폴더 구조
+## 2. 폴더 구조
 
-- `hardware/`: 센서와 모터 같은 하드웨어 제어 모듈
-- `sequences/`: 트리거 발생 시 실행되는 동작 순서
-- `tests_manual/`: 부품별 수동 테스트 코드
-- `archive/old_full_versions/`: 정리 전 통합본 원본 보관
-- `archive/experiments/`: 기타 실험/빈 파일 보관
-
-## 실행
-
-```bash
-python3 main.py
+```text
+tfmini_machine_flow/
+├─ main.py
+├─ config.py
+├─ hardware/
+│  ├─ __init__.py
+│  ├─ distance_sensor.py
+│  ├─ actuator.py
+│  ├─ worm_motor.py
+│  ├─ stepper_motor.py
+│  └─ servo_motor.py
+├─ flows/
+│  ├─ __init__.py
+│  ├─ machine_flow.py
+│  └─ flow_state.py
+├─ tests_manual/
+│  ├─ test_distance_sensor.py
+│  ├─ test_actuator.py
+│  ├─ test_worm_motor.py
+│  ├─ test_stepper.py
+│  └─ test_servo.py
+└─ README.md
 ```
 
-## 파일별 역할
+## 3. 실행 방법
 
-### 최상위 파일
+작업 폴더 루트(`/home/pi/Desktop`)에서 아래 명령어를 실행합니다.
 
-- `main.py`
-  - 실제로 실행하는 메인 프로그램입니다.
-  - 하드웨어 객체를 만들고, 리니어 액추에이터 초기 세팅을 한 뒤, 거리센서를 계속 읽습니다.
-  - 거리값이 트리거 조건에 맞으면 `sequences/inspection_sequence.py`의 동작 순서를 별도 스레드로 실행합니다.
+```bash
+python3 tfmini_machine_flow/main.py
+```
 
-- `config.py`
-  - 프로젝트의 주요 설정값을 모아둔 파일입니다.
-  - GPIO 핀 번호, 거리 감지 기준, 모터 속도, 서보 각도, 스텝모터 스텝 수를 여기서 수정합니다.
-  - 동작을 바꾸고 싶을 때 가장 먼저 확인할 파일입니다.
+종료할 때는 `Ctrl+C`를 누릅니다. 종료 시 모터 정지, PWM 정지, 센서 close 처리를 수행합니다.
 
-- `README.md`
-  - 프로젝트 구조, 실행 방법, 파일 역할, 수정 위치를 설명하는 문서입니다.
+## 4. 전체 동작 Flow
 
-### `hardware/`
+1. 프로그램이 시작됩니다.
+2. TFmini 거리센서를 UART로 연결합니다.
+3. 리니어 액추에이터를 설정된 시간만큼 전진시킵니다.
+4. 웜기어 모터를 계속 동작시킵니다.
+5. 거리값이 60cm 이하로 감지됩니다.
+6. 웜기어 모터를 정지합니다.
+7. 스텝모터를 +90도 회전합니다.
+8. 서보모터를 +방향으로 2초 동안 천천히 이동합니다.
+9. 웜기어 모터를 5초 동안 동작시킨 뒤 정지합니다.
+10. 서보모터를 -방향으로 2초 동안 천천히 복귀시킵니다.
+11. 웜기어 모터를 다시 동작시킵니다.
+12. 거리값이 `RESET_DIST` 이상 멀어지면 다시 감지 가능한 상태가 됩니다.
 
-- `hardware/distance_sensor.py`
-  - TFmini UART 거리센서를 읽는 코드입니다.
-  - TFmini의 9바이트 프레임을 해석해서 거리(cm)를 반환합니다.
+## 5. 재감지 조건
 
-- `hardware/actuator.py`
-  - 리니어 액추에이터를 제어합니다.
-  - BTS 드라이버의 `RPWM`, `LPWM`, `L_EN`, `R_EN` 핀을 사용합니다.
-  - 현재는 전진(`extend`)과 정지(`stop`)만 사용합니다.
+거리값이 `TRIGGER_DIST` 이하로 `DETECT_COUNT`번 연속 들어오면 Flow가 1회 실행됩니다.
 
-- `hardware/worm_motor.py`
-  - 웜기어 모터들을 제어합니다.
-  - `config.py`의 `WORM_MOTOR_PINS` 목록에 적힌 모터 수만큼 자동으로 생성합니다.
-  - 웜기어를 2개에서 3개로 늘리고 싶으면 이 파일보다 `config.py`의 핀 목록을 먼저 수정하면 됩니다.
+같은 물체가 가까운 거리에 계속 있는 동안에는 Flow가 반복 실행되지 않습니다. Flow 실행 중에도 중복 실행되지 않고, Flow가 끝난 뒤에도 거리값이 `RESET_DIST`보다 가까우면 다시 실행되지 않습니다.
 
-- `hardware/stepper_motor.py`
-  - 스텝모터의 PUL/DIR 신호를 제어합니다.
-  - `rotate_plus_90()`, `rotate_minus_90()`로 90도 회전을 실행합니다.
+거리값이 `RESET_DIST` 이상 멀어진 뒤에만 다음 감지가 가능합니다.
 
-- `hardware/servo_motor.py`
-  - 서보모터를 목표 각도까지 천천히 움직이는 코드입니다.
-  - 내부 스레드가 주기적으로 현재 각도를 목표 각도 쪽으로 이동시킵니다.
+## 6. config.py에서 수정할 수 있는 값
 
-### `sequences/`
+주요 설정값은 [config.py](/home/pi/Desktop/tfmini_machine_flow/config.py)에 있습니다.
 
-- `sequences/inspection_sequence.py`
-  - 거리센서 트리거가 발생했을 때 실행할 순서를 정의합니다.
-  - 현재 순서는 웜기어 정지, 스텝모터 +90도, 서보 이동, 웜기어 재시작, 대기 후 서보 복귀입니다.
+- `TFMINI_PORT`, `TFMINI_BAUDRATE`, `SERIAL_TIMEOUT`
+- `TRIGGER_DIST`, `RESET_DIST`, `DETECT_COUNT`, `COOLDOWN_SECONDS`
+- `ACTUATOR_PINS`, `ACTUATOR_SPEED`, `ACTUATOR_TIME`
+- `WORM_MOTOR_PINS`, `WORM_SPEED`, `WORM_RUN_SECONDS`
+- `STEPPER_PINS`, `STEPS_90`, `STEP_DELAY`, `DIR_DELAY`
+- `SERVO_GPIO`, `SERVO_SPEED`, `SERVO_DEG_PER_SEC`, `SERVO_MOVE_SECONDS`
+- `SERVO_HOME_ANGLE`, `SERVO_MIN_ANGLE`, `SERVO_MAX_ANGLE`
+- `SERVO_MIN_PULSE_WIDTH`, `SERVO_MAX_PULSE_WIDTH`
 
-### `tests_manual/`
+자세한 실행 방법과 값 변경 설명은 [실행_설정_가이드.md](/home/pi/Desktop/tfmini_machine_flow/실행_설정_가이드.md)를 확인하세요.
 
-- `tests_manual/test_distance_sensor_raw.py`
-  - 거리센서 raw 데이터 확인용입니다.
+## 7. 부품별 수동 테스트
 
-- `tests_manual/test_actuator_extend.py`
-  - 리니어 액추에이터 전진 테스트용입니다.
+각 부품을 따로 확인할 때는 작업 폴더 루트에서 아래 명령어를 실행합니다.
 
-- `tests_manual/test_worm_motors_2ch.py`
-  - 웜기어 2개 동시 구동 테스트용입니다.
+```bash
+python3 tfmini_machine_flow/tests_manual/test_distance_sensor.py
+python3 tfmini_machine_flow/tests_manual/test_actuator.py
+python3 tfmini_machine_flow/tests_manual/test_worm_motor.py
+python3 tfmini_machine_flow/tests_manual/test_stepper.py
+python3 tfmini_machine_flow/tests_manual/test_servo.py
+```
 
-- `tests_manual/test_stepper_forward_reverse.py`
-  - 스텝모터 정방향/역방향 회전 테스트용입니다.
+## 8. 하드웨어 보정 TODO
 
-- `tests_manual/test_servo_slow_move.py`
-  - `gpiozero.AngularServo` 기반 서보 테스트용입니다.
+- `ACTUATOR_TIME`: 실제로 리니어 액추에이터가 약 3cm 전진하는 시간을 측정해서 보정해야 합니다.
+- `SERVO_MIN_PULSE_WIDTH`, `SERVO_MAX_PULSE_WIDTH`: 사용하는 서보 사양에 맞게 PWM 펄스폭을 확인해야 합니다.
+- `SERVO_MIN_ANGLE`, `SERVO_MAX_ANGLE`: 실제 기구물의 안전 각도 범위에 맞게 확인해야 합니다.
+- `STEPS_90`: 스텝모터 드라이버의 마이크로스텝 설정에 따라 90도 펄스 수를 확인해야 합니다.
+- `WORM_SPEED`: 실제 부하 상태에서 웜기어 모터 속도가 적절한지 확인해야 합니다.
 
-- `tests_manual/test_servo_lgpio_pulse.py`
-  - `lgpio` 기반 서보 펄스 테스트용입니다.
+## 9. 기존 소스 처리 기준
 
-- `tests_manual/test_gpio_init.py`
-  - GPIO와 시리얼 초기화가 되는지 확인하는 테스트용입니다.
+기존 루트의 `main.py`, `config.py`, `hardware/`, `sequences/`, `flows/`, `tests_manual/`, `archive/`는 수정하지 않습니다.
 
-### `archive/`
-
-- `archive/old_full_versions/`
-  - 정리 전 통합본 원본을 보관합니다.
-  - 참고용이며, 새 개발은 `main.py`, `config.py`, `hardware/`, `sequences/` 기준으로 진행합니다.
-
-- `archive/experiments/`
-  - 실험용 파일 또는 빈 파일을 보관합니다.
-
-## 무엇을 바꾸고 싶을 때 어디를 수정할까?
-
-- 트리거 거리를 바꾸고 싶다
-  - `config.py`의 `TRIGGER_DIST`, `RESET_DIST`
-
-- 몇 번 연속 감지해야 동작할지 바꾸고 싶다
-  - `config.py`의 `DETECT_COUNT`
-
-- 트리거 후 다시 감지되기까지 최소 시간을 바꾸고 싶다
-  - `config.py`의 `COOLDOWN`
-
-- 리니어 액추에이터가 처음에 더 오래 또는 짧게 움직이게 하고 싶다
-  - `config.py`의 `ACTUATOR_TIME`
-
-- 리니어 액추에이터 속도를 바꾸고 싶다
-  - `config.py`의 `ACTUATOR_SPEED`
-
-- 웜기어 속도를 바꾸고 싶다
-  - `config.py`의 `WORM_SPEED`
-
-- 웜기어 모터를 추가하거나 핀을 바꾸고 싶다
-  - `config.py`의 `WORM_MOTOR_PINS`
-
-- 스텝모터가 90도를 덜 돌거나 더 돌면 보정하고 싶다
-  - `config.py`의 `STEPS_90`
-
-- 스텝모터 속도를 바꾸고 싶다
-  - `config.py`의 `STEP_DELAY`
-
-- 서보 목표 각도를 바꾸고 싶다
-  - `config.py`의 `SERVO_TARGET_PLUS`, `SERVO_TARGET_HOME`
-
-- 서보 움직임이 너무 느리거나 빠르다
-  - `config.py`의 `SERVO_SPEED`
-
-- 트리거 후 동작 순서 자체를 바꾸고 싶다
-  - `sequences/inspection_sequence.py`
-
-- 거리 감지 방식이나 TFmini 데이터 해석을 바꾸고 싶다
-  - `hardware/distance_sensor.py`
-
-- 시작/종료 흐름, 재감지 조건, 화면 출력 방식을 바꾸고 싶다
-  - `main.py`
-
-## 정리 기준
-
-현재 최종 실행 흐름은 기존 `젭ㄹ라ㅏㄹ.py`를 기준으로 나누었습니다.
-이전 파일들은 삭제하지 않고 `archive/`와 `tests_manual/`로 이동했습니다.
+이 프로젝트는 기존 설정값과 하드웨어 제어 방식을 참고만 하고, 새 구현은 모두 `tfmini_machine_flow/` 아래에서 관리합니다.

@@ -1,6 +1,17 @@
 __pycache__/
 *.py[cod]
+*$py.class
 
-.agents/
-.codex/
-.lgd-*
+.Python
+.venv/
+venv/
+env/
+
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+.DS_Store
+Thumbs.db
+
+*.log
