@@ -18,16 +18,16 @@ def main():
 
     try:
         worm_motors.enable()
-        print("[test] worm forward")
+        print("[테스트] 웜기어 모터 정방향 동작 시작")
         worm_motors.forward()
         time.sleep(config.WORM_RUN_SECONDS)
         worm_motors.stop()
-        print("[test] worm stopped")
+        print("[테스트] 웜기어 모터 정지")
     except KeyboardInterrupt:
-        print("\n[test] stopping")
+        print("\n[테스트] 종료 요청 감지")
     finally:
         worm_motors.close()
-        print("[test] closed")
+        print("[테스트] 웜기어 모터 정리 완료")
 
 
 if __name__ == "__main__":

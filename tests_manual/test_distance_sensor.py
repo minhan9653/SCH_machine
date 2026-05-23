@@ -19,21 +19,21 @@ def main():
         config.TFMINI_BAUDRATE,
         timeout=config.SERIAL_TIMEOUT,
     )
-    print("[test] TFmini connected")
+    print("[테스트] TFmini 거리센서 연결 완료")
 
     try:
         while True:
             distance = sensor.read_distance()
             if distance is None:
-                print("distance: None")
+                print("거리: 없음")
             else:
-                print(f"distance: {distance} cm")
+                print(f"거리: {distance} cm")
             time.sleep(0.1)
     except KeyboardInterrupt:
-        print("\n[test] stopping")
+        print("\n[테스트] 종료 요청 감지")
     finally:
         sensor.close()
-        print("[test] closed")
+        print("[테스트] 센서 정리 완료")
 
 
 if __name__ == "__main__":

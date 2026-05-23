@@ -39,7 +39,7 @@ class TFmini:
 
                 del self._buffer[:1]
         except Exception as exc:
-            print(f"[sensor warning] read failed: {exc}")
+            print(f"[센서 경고] 거리 읽기 실패: {exc}")
             return None
 
         return None
@@ -50,4 +50,4 @@ class TFmini:
             if self._serial.is_open:
                 self._serial.close()
         except Exception as exc:
-            print(f"[sensor warning] close failed: {exc}")
+            print(f"[센서 경고] UART 닫기 실패: {exc}")

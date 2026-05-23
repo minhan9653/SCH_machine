@@ -24,16 +24,16 @@ def main():
     )
 
     try:
-        print(f"[test] current angle: {servo.angle:+.1f} deg")
+        print(f"[테스트] 현재 서보 각도: {servo.angle:+.1f}도")
         servo.move_relative_slow(config.SERVO_MOVE_DEG, config.SERVO_MOVE_SECONDS)
-        print(f"[test] after +move: {servo.angle:+.1f} deg")
+        print(f"[테스트] +방향 이동 후 각도: {servo.angle:+.1f}도")
         servo.move_relative_slow(-config.SERVO_MOVE_DEG, config.SERVO_MOVE_SECONDS)
-        print(f"[test] after -move: {servo.angle:+.1f} deg")
+        print(f"[테스트] -방향 복귀 후 각도: {servo.angle:+.1f}도")
     except KeyboardInterrupt:
-        print("\n[test] stopping")
+        print("\n[테스트] 종료 요청 감지")
     finally:
         servo.close()
-        print("[test] closed")
+        print("[테스트] 서보 정리 완료")
 
 
 if __name__ == "__main__":

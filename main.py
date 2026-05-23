@@ -53,13 +53,30 @@ def close_hardware(sensor, actuator, worm_motors, stepper, servo):
         try:
             device.close()
         except Exception as exc:
-            print(f"[cleanup warning] {exc}")
+            print(f"[정리 경고] 장치 정리 중 문제 발생: {exc}")
+
+
+STATE_LABELS = {
+    FlowState.INIT: "초기화",
+    FlowState.SENSOR_READY: "센서 준비 완료",
+    FlowState.ACTUATOR_EXTENDED: "액추에이터 초기 전진 완료",
+    FlowState.WORM_RUNNING: "웜기어 모터 기본 동작 중",
+    FlowState.OBJECT_DETECTED: "물체 감지",
+    FlowState.FLOW_RUNNING: "Flow 실행 중",
+    FlowState.WAIT_REARM: "재감지 대기",
+    FlowState.ERROR: "오류",
+}
 
 
 def set_state(state):
     """현재 상태를 로그로 출력하고 상태값을 반환합니다."""
-    print(f"[main] state: {state.name}")
+    print(f"[메인] 상태: {STATE_LABELS.get(state, state.name)}")
     return state
+
+
+def is_rearmed_distance(distance):
+    """같은 물체가 감지 거리 경계에 있을 때 반복 실행되지 않도록 재감지 거리를 판단합니다."""
+    return distance >= config.RESET_DIST and distance > config.TRIGGER_DIST
 
 
 def main():
@@ -74,21 +91,21 @@ def main():
     try:
         sensor, actuator, worm_motors, stepper, servo = build_hardware()
         state = set_state(FlowState.SENSOR_READY)
-        print("[main] TFmini ready")
+        print("[메인] TFmini 거리센서 준비 완료")
 
         actuator.enable()
         worm_motors.enable()
 
-        print("[main] linear actuator extend")
+        print("[메인] 리니어 액추에이터 초기 전진 시작")
         actuator.extend()
         time.sleep(config.ACTUATOR_TIME)
         actuator.stop()
         state = set_state(FlowState.ACTUATOR_EXTENDED)
-        print("[main] linear actuator done")
+        print("[메인] 리니어 액추에이터 초기 전진 완료")
 
         worm_motors.forward()
         state = set_state(FlowState.WORM_RUNNING)
-        print("[main] worm motor running")
+        print("[메인] 웜기어 모터 기본 동작 시작")
 
         # triggered=True이면 물체가 아직 가까이 있어서 재감지를 막는 상태입니다.
         triggered = False
@@ -108,7 +125,7 @@ def main():
                 continue
 
             if now - last_distance_log >= config.DISTANCE_LOG_INTERVAL_SECONDS:
-                print(f"distance: {distance} cm")
+                print(f"거리: {distance} cm")
                 last_distance_log = now
 
             if not triggered:
@@ -125,7 +142,7 @@ def main():
                     and not flow_running.is_set()
                 ):
                     print(
-                        f"[main] object detected: distance <= "
+                        f"[메인] 물체 감지: 거리 <= "
                         f"{config.TRIGGER_DIST}cm"
                     )
                     triggered = True
@@ -145,41 +162,48 @@ def main():
             else:
                 if state is FlowState.FLOW_RUNNING and not flow_running.is_set():
                     state = set_state(FlowState.WAIT_REARM)
+                    print(
+                        f"[메인] 거리값이 {config.TRIGGER_DIST}cm 기준보다 "
+                        "멀어질 때까지 재감지를 대기합니다"
+                    )
 
                 # Flow가 끝나도 거리가 계속 가까우면 재실행하지 않습니다.
-                # RESET_DIST 이상 멀어진 뒤에만 다음 감지를 허용합니다.
-                if not flow_running.is_set() and distance >= config.RESET_DIST:
+                # RESET_DIST 이상이면서 TRIGGER_DIST보다 멀어진 뒤에만 다음 감지를 허용합니다.
+                if not flow_running.is_set() and is_rearmed_distance(distance):
                     triggered = False
                     detect_hits = 0
                     state = set_state(FlowState.WORM_RUNNING)
-                    print("[main] re-armed: distance >= RESET_DIST")
+                    print(
+                        f"[메인] 재감지 가능: 거리 > "
+                        f"{config.TRIGGER_DIST}cm"
+                    )
 
             time.sleep(config.LOOP_SLEEP_SECONDS)
 
     except KeyboardInterrupt:
-        print("\n[main] stopping")
+        print("\n[메인] 종료 요청 감지, 장치를 정리합니다")
     except Exception as exc:
         state = set_state(FlowState.ERROR)
-        print(f"[main error] {exc}")
+        print(f"[메인 오류] {exc}")
     finally:
         # close 전에 먼저 모터 출력을 0으로 내려 안전하게 멈춥니다.
         if worm_motors is not None:
             try:
                 worm_motors.stop()
             except Exception as exc:
-                print(f"[cleanup warning] worm stop failed: {exc}")
+                print(f"[정리 경고] 웜기어 모터 정지 실패: {exc}")
         if actuator is not None:
             try:
                 actuator.stop()
             except Exception as exc:
-                print(f"[cleanup warning] actuator stop failed: {exc}")
+                print(f"[정리 경고] 액추에이터 정지 실패: {exc}")
         if servo is not None:
             try:
                 servo.stop()
             except Exception as exc:
-                print(f"[cleanup warning] servo stop failed: {exc}")
+                print(f"[정리 경고] 서보 정지 실패: {exc}")
         close_hardware(sensor, actuator, worm_motors, stepper, servo)
-        print("[main] cleanup completed")
+        print("[메인] 장치 정리 완료")
 
 
 if __name__ == "__main__":

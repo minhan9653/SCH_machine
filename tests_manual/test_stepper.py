@@ -21,14 +21,14 @@ def main():
     )
 
     try:
-        print("[test] stepper +90")
+        print("[테스트] 스텝모터 +90도 회전 시작")
         stepper.rotate_plus_90()
-        print("[test] stepper +90 done")
+        print("[테스트] 스텝모터 +90도 회전 완료")
     except KeyboardInterrupt:
-        print("\n[test] stopping")
+        print("\n[테스트] 종료 요청 감지")
     finally:
         stepper.close()
-        print("[test] closed")
+        print("[테스트] 스텝모터 정리 완료")
 
 
 if __name__ == "__main__":

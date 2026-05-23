@@ -34,9 +34,10 @@ TRIGGER_DIST = 60
 
 # RESET_DIST:
 # Flow 실행 후 다시 감지 가능 상태로 돌아가기 위한 거리 기준입니다. 단위는 cm입니다.
-# TRIGGER_DIST보다 조금 크게 두면 센서값 흔들림으로 반복 실행되는 것을 줄일 수 있습니다.
-# 예: TRIGGER_DIST=60, RESET_DIST=62이면 60cm에서 감지되고 62cm 이상 멀어져야 재감지됩니다.
-RESET_DIST = 62
+# 현재 요구사항은 60cm 이상 멀어지면 다시 감지 가능 상태로 돌아가는 것입니다.
+# main.py에서는 정확히 60cm 경계에 머무를 때 반복 실행되지 않도록 TRIGGER_DIST보다 멀어진 값에서 재감지합니다.
+# 센서값이 60cm 근처에서 흔들려 반복 실행된다면 이 값을 62처럼 조금 크게 올리세요.
+RESET_DIST = 60
 
 # DETECT_COUNT:
 # TRIGGER_DIST 이하 거리값이 몇 번 연속 들어와야 진짜 감지로 볼지 정합니다.

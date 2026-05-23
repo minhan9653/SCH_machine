@@ -18,16 +18,16 @@ def main():
 
     try:
         actuator.enable()
-        print("[test] actuator extend")
+        print("[테스트] 리니어 액추에이터 전진 시작")
         actuator.extend()
         time.sleep(config.ACTUATOR_TIME)
         actuator.stop()
-        print("[test] actuator stopped")
+        print("[테스트] 리니어 액추에이터 정지")
     except KeyboardInterrupt:
-        print("\n[test] stopping")
+        print("\n[테스트] 종료 요청 감지")
     finally:
         actuator.close()
-        print("[test] closed")
+        print("[테스트] 액추에이터 정리 완료")
 
 
 if __name__ == "__main__":
